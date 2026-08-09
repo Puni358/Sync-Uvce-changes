@@ -3,24 +3,28 @@
 const API_BASE_URL = '';
 
 /**
- * Register a new user account.
- * @param {Object} userData - { name, email, password }
+ * Helper to safely parse response body as JSON or extract clear error message
  */
-export async function registerUser({ name, email, password }) {
-  const response = await fetch(`${API_BASE_URL}/auth/register`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ name, email, password }),
-  });
-
-  const data = await response.json();
+async function parseResponse(response, defaultErrorMsg) {
+  let data = null;
+  const text = await response.text();
+  
+  if (text && text.trim().length > 0) {
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      // Body was not JSON (e.g. proxy HTML error page or plain text)
+      data = null;
+    }
+  }
 
   if (!response.ok) {
-    let errorMsg = data.detail || 'Registration failed. Please try again.';
-    if (Array.isArray(data.detail)) {
+    let errorMsg = data?.detail;
+    if (Array.isArray(data?.detail)) {
       errorMsg = data.detail.map((err) => err.msg).join(', ');
+    }
+    if (!errorMsg) {
+      errorMsg = `${defaultErrorMsg} (Status: ${response.status}). Please check if the backend server is running on port 8000.`;
     }
     throw new Error(errorMsg);
   }
@@ -29,29 +33,49 @@ export async function registerUser({ name, email, password }) {
 }
 
 /**
+ * Register a new user account.
+ * @param {Object} userData - { name, email, password }
+ */
+export async function registerUser({ name, email, password }) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name, email, password }),
+    });
+
+    return await parseResponse(response, 'Registration failed');
+  } catch (err) {
+    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+      throw new Error('Could not connect to server. Please ensure backend server is running on http://127.0.0.1:8000.');
+    }
+    throw err;
+  }
+}
+
+/**
  * Login user and receive JWT access token.
  * @param {Object} credentials - { email, password }
  */
 export async function loginUser({ email, password }) {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ email, password }),
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    let errorMsg = data.detail || 'Invalid email or password';
-    if (Array.isArray(data.detail)) {
-      errorMsg = data.detail.map((err) => err.msg).join(', ');
+    return await parseResponse(response, 'Invalid email or password');
+  } catch (err) {
+    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+      throw new Error('Could not connect to server. Please ensure backend server is running on http://127.0.0.1:8000.');
     }
-    throw new Error(errorMsg);
+    throw err;
   }
-
-  return data; // { access_token, token_type }
 }
 
 /**
@@ -59,19 +83,20 @@ export async function loginUser({ email, password }) {
  * @param {string} token - JWT access token
  */
 export async function getCurrentUser(token) {
-  const response = await fetch(`${API_BASE_URL}/auth/me`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.detail || 'Session expired. Please log in again.');
+    return await parseResponse(response, 'Session expired. Please log in again.');
+  } catch (err) {
+    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+      throw new Error('Could not connect to server. Please ensure backend server is running on http://127.0.0.1:8000.');
+    }
+    throw err;
   }
-
-  return data; // { id, name, email, role, is_verified, created_at }
 }

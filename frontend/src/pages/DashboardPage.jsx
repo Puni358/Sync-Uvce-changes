@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '../components/AuthContext';
 
 export default function DashboardPage() {
-  const { user, logout, loadingProfile } = useAuth();
+  const { user, logout, view, setView, loadingProfile } = useAuth();
 
   if (loadingProfile) {
     return (
@@ -23,9 +23,25 @@ export default function DashboardPage() {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
       {/* Top Navbar */}
       <header className="dashboard-navbar">
-        <div className="dashboard-brand">
-          <span className="auth-logo" style={{ width: '36px', height: '36px', fontSize: '16px', margin: 0 }}>UV</span>
-          Sync-UVCE
+        <div className="nav-left">
+          <div className="dashboard-brand" onClick={() => setView('dashboard')} style={{ cursor: 'pointer' }}>
+            <span className="auth-logo" style={{ width: '36px', height: '36px', fontSize: '16px', margin: 0 }}>UV</span>
+            Sync-UVCE
+          </div>
+          <nav className="nav-menu">
+            <button
+              className={`nav-item ${view === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setView('dashboard')}
+            >
+              Dashboard
+            </button>
+            <button
+              className={`nav-item ${view === 'marketplace' || view === 'sell' ? 'active' : ''}`}
+              onClick={() => setView('marketplace')}
+            >
+              Marketplace
+            </button>
+          </nav>
         </div>
         <button id="logout-btn" className="btn-secondary" onClick={logout}>
           <span>🔒</span> Log Out

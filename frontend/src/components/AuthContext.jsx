@@ -1,13 +1,15 @@
 import React, { createContext, useContext, useState } from 'react';
 import { getCurrentUser } from '../api/auth';
+import { getMarketplaceItems, saveMarketplaceItems } from '../api/marketplace';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null); // In-memory JWT storage
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('login'); // 'login' | 'register' | 'dashboard'
+  const [view, setView] = useState('login'); // 'login' | 'register' | 'dashboard' | 'marketplace' | 'sell'
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [marketplaceItems, setMarketplaceItems] = useState(getMarketplaceItems);
 
   /**
    * Called upon successful login with JWT access token.
@@ -31,6 +33,22 @@ export function AuthProvider({ children }) {
   };
 
   /**
+   * Add a new marketplace item to state and storage, then switch back to marketplace view.
+   */
+  const addMarketplaceItem = (newItem) => {
+    const item = {
+      id: `item-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      sellerName: user?.name || 'UVCE Student',
+      ...newItem,
+    };
+    const updated = [item, ...marketplaceItems];
+    setMarketplaceItems(updated);
+    saveMarketplaceItems(updated);
+    setView('marketplace');
+  };
+
+  /**
    * Logs out the user by clearing in-memory token and user data.
    */
   const logout = () => {
@@ -50,6 +68,8 @@ export function AuthProvider({ children }) {
         handleLoginSuccess,
         logout,
         loadingProfile,
+        marketplaceItems,
+        addMarketplaceItem,
       }}
     >
       {children}
@@ -64,3 +84,4 @@ export function useAuth() {
   }
   return context;
 }
+
