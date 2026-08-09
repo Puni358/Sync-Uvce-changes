@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../components/AuthContext';
+import { createMarketplaceItem } from '../api/marketplace';
 
 export default function SellItemPage() {
-  const { logout, view, setView, addMarketplaceItem } = useAuth();
+  const { token, logout, view, setView } = useAuth();
 
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');
@@ -36,12 +37,12 @@ export default function SellItemPage() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     if (!title.trim()) {
-      setError('Please enter a item title.');
+      setError('Please enter an item title.');
       return;
     }
 
@@ -54,7 +55,7 @@ export default function SellItemPage() {
 
     const finalImage = imagePreview || createDefaultSvgImage(title, category);
 
-    const newItem = {
+    const newItemData = {
       title: title.trim(),
       price: Number(price),
       pricingType,
@@ -64,10 +65,11 @@ export default function SellItemPage() {
     };
 
     try {
-      addMarketplaceItem(newItem);
+      await createMarketplaceItem(newItemData, token);
+      setView('marketplace');
     } catch (err) {
       console.error('Failed to add marketplace item:', err);
-      setError('Failed to save listing. Please try again.');
+      setError(err.message || 'Failed to save listing. Please try again.');
       setSubmitting(false);
     }
   };

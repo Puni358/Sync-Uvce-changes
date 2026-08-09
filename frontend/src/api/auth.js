@@ -1,4 +1,4 @@
-// Auth API client for Sync-UVCE
+// Auth API client for Sync-UVCE (Passwordless OTP flow)
 
 const API_BASE_URL = '';
 
@@ -8,12 +8,11 @@ const API_BASE_URL = '';
 async function parseResponse(response, defaultErrorMsg) {
   let data = null;
   const text = await response.text();
-  
+
   if (text && text.trim().length > 0) {
     try {
       data = JSON.parse(text);
     } catch (e) {
-      // Body was not JSON (e.g. proxy HTML error page or plain text)
       data = null;
     }
   }
@@ -24,7 +23,7 @@ async function parseResponse(response, defaultErrorMsg) {
       errorMsg = data.detail.map((err) => err.msg).join(', ');
     }
     if (!errorMsg) {
-      errorMsg = `${defaultErrorMsg} (Status: ${response.status}). Please check if the backend server is running on port 8000.`;
+      errorMsg = `${defaultErrorMsg} (Status: ${response.status}). Please check if backend server is running.`;
     }
     throw new Error(errorMsg);
   }
@@ -33,17 +32,17 @@ async function parseResponse(response, defaultErrorMsg) {
 }
 
 /**
- * Register a new user account.
- * @param {Object} userData - { name, email, password }
+ * Register a new user account (name + email).
+ * @param {Object} userData - { name, email }
  */
-export async function registerUser({ name, email, password }) {
+export async function registerUser({ name, email }) {
   try {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email }),
     });
 
     return await parseResponse(response, 'Registration failed');
@@ -56,20 +55,43 @@ export async function registerUser({ name, email, password }) {
 }
 
 /**
- * Login user and receive JWT access token.
- * @param {Object} credentials - { email, password }
+ * Request a 6-digit OTP code sent to user email.
+ * @param {Object} data - { email }
  */
-export async function loginUser({ email, password }) {
+export async function requestOtp({ email }) {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetch(`${API_BASE_URL}/auth/request-otp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email }),
     });
 
-    return await parseResponse(response, 'Invalid email or password');
+    return await parseResponse(response, 'Failed to request OTP');
+  } catch (err) {
+    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+      throw new Error('Could not connect to server. Please ensure backend server is running on http://127.0.0.1:8000.');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Verify 6-digit OTP code and receive JWT access token.
+ * @param {Object} data - { email, code }
+ */
+export async function verifyOtp({ email, code }) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, code }),
+    });
+
+    return await parseResponse(response, 'Invalid or expired code');
   } catch (err) {
     if (err.name === 'TypeError' && err.message.includes('fetch')) {
       throw new Error('Could not connect to server. Please ensure backend server is running on http://127.0.0.1:8000.');
